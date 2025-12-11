@@ -21,10 +21,6 @@ export class TelegramService implements OnModuleInit {
 
       this.logger.log('✅ Telegram bot started successfully (launched by nestjs-telegraf)');
       this.isReady = true;
-
-      // Enable graceful stop
-      process.once('SIGINT', () => this.bot.stop('SIGINT'));
-      process.once('SIGTERM', () => this.bot.stop('SIGTERM'));
     } catch (error) {
       this.logger.error(`❌ Failed to verify bot: ${error.message}`);
       this.logger.error(

@@ -4,6 +4,7 @@ import { IWizardField } from '../interfaces/wizard-field.interface';
 import { IpValidator } from '../../validation/validators/ip.validator';
 import { PortValidator } from '../../validation/validators/port.validator';
 import { TextValidator } from '../../validation/validators/text.validator';
+import { ServiceData, DashboardServiceData } from '../../types/service.types';
 
 @Injectable()
 export class AddServiceDashboardWizard extends BaseWizardService {
@@ -65,16 +66,17 @@ export class AddServiceDashboardWizard extends BaseWizardService {
     ];
   }
 
-  formatSummary(data: Record<string, any>): string {
+  formatSummary(data: Partial<ServiceData>): string {
+    const dashboardData = data as Partial<DashboardServiceData>;
     return (
       `✅ Service added successfully!\n\n` +
       `📋 Summary:\n` +
       `Service Type: Dashboard\n` +
-      `Name: ${data.name}\n` +
-      `Host: ${data.host}\n` +
-      `Group: ${data.group}\n` +
-      `Sub-group: ${data.sub_group}\n` +
-      `Icon: ${data.icon}`
+      `Name: ${dashboardData.name ?? 'N/A'}\n` +
+      `Host: ${dashboardData.host ?? 'N/A'}\n` +
+      `Group: ${dashboardData.group ?? 'N/A'}\n` +
+      `Sub-group: ${dashboardData.sub_group ?? 'N/A'}\n` +
+      `Icon: ${dashboardData.icon ?? 'N/A'}`
     );
   }
 }

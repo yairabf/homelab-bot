@@ -1,6 +1,8 @@
+import { ServiceData } from './service.types';
+
 export interface WizardSession {
   currentStep: number;
-  data: Record<string, any>;
+  data: Partial<ServiceData>;
   serviceType: string;
   createdAt: number;
   lastActivity: number;

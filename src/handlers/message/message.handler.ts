@@ -5,6 +5,10 @@ import { SessionService } from '../../session/session.service';
 import { WizardRegistryService } from '../../wizards/registry/wizard-registry.service';
 import { WebhookService } from '../../webhook/webhook.service';
 import { ConfigurationService } from '../../config/configuration.service';
+import { IWizard } from '../../wizards/interfaces/wizard.interface';
+import { IWizardField } from '../../wizards/interfaces/wizard-field.interface';
+import { WizardSession } from '../../types/session.types';
+import { HostProcessor } from '../../utils/host-processor.util';
 
 @Update()
 @Injectable()
@@ -57,7 +61,10 @@ export class MessageHandler {
         user_id: ctx.from!.id,
         username: ctx.from?.username,
         service_type: 'unknown',
-        service: {} as any,
+        service: {
+          name: '',
+          host: '',
+        } as any, // Legacy endpoint accepts minimal data
       });
       await ctx.reply('🧠 Got it, sending this to the homelab agent...');
     } catch (error) {
@@ -68,80 +75,126 @@ export class MessageHandler {
 
   private async processWizardStep(
     ctx: Context,
-    session: any,
+    session: WizardSession,
     text: string,
   ): Promise<void> {
     const wizard = this.wizardRegistry.getWizard(session.serviceType);
     if (!wizard) {
-      await ctx.reply('❌ Wizard not found. Please start over.');
-      this.sessionService.deleteSession(ctx.chat!.id);
+      await this.handleInvalidWizard(ctx);
       return;
     }
 
-    const currentStep = session.currentStep;
-    const fields = wizard.getFields();
-    const currentField = fields[currentStep];
-
+    const currentField = this.getCurrentWizardField(session, wizard);
     if (!currentField) {
-      await ctx.reply('❌ Invalid step. Please start over.');
-      this.sessionService.deleteSession(ctx.chat!.id);
+      await this.handleInvalidStep(ctx);
       return;
     }
 
-    // Skip if this field uses keyboard (protocol)
     if (currentField.type === 'keyboard') {
-      return;
+      return; // Handled by callback handler
     }
 
-    // Validate input
     const validationResult = wizard.validateField(currentField.key, text);
     if (!validationResult.isValid) {
-      await ctx.reply(validationResult.errorMessage || 'Invalid input. Please try again:');
+      await ctx.reply(
+        validationResult.errorMessage || 'Invalid input. Please try again:',
+      );
       return;
     }
 
-    // Store the value
-    // Process port as number, others as string
-    let processedValue =
-      currentField.validate === 'port' ? parseInt(text, 10) : text;
+    const processedValue = this.processFieldValue(
+      currentField,
+      text,
+      session.serviceType,
+    );
+    this.updateSessionAndAdvance(ctx.chat!.id, currentField.key, processedValue);
 
-    // Add .yairlab suffix to host for DNS wizard
-    if (currentField.key === 'host' && session.serviceType === 'dns' && typeof processedValue === 'string') {
-      if (!processedValue.endsWith('.yairlab')) {
-        processedValue = `${processedValue}.yairlab`;
-      }
+    await this.displayNextFieldOrComplete(ctx, session, wizard);
+  }
+
+  private getCurrentWizardField(
+    session: WizardSession,
+    wizard: IWizard,
+  ): IWizardField | undefined {
+    const fields = wizard.getFields();
+    return fields[session.currentStep];
+  }
+
+  private async handleInvalidWizard(ctx: Context): Promise<void> {
+    await ctx.reply('❌ Wizard not found. Please start over.');
+    this.sessionService.deleteSession(ctx.chat!.id);
+  }
+
+  private async handleInvalidStep(ctx: Context): Promise<void> {
+    await ctx.reply('❌ Invalid step. Please start over.');
+    this.sessionService.deleteSession(ctx.chat!.id);
+  }
+
+  private processFieldValue(
+    field: IWizardField,
+    text: string,
+    serviceType: string,
+  ): string | number {
+    if (field.validate === 'port') {
+      return parseInt(text, 10);
     }
 
-    this.sessionService.updateSessionData(ctx.chat!.id, {
-      [currentField.key]: processedValue,
+    if (field.key === 'host') {
+      return HostProcessor.addYairlabSuffixIfNeeded(text, serviceType);
+    }
+
+    return text;
+  }
+
+  private updateSessionAndAdvance(
+    chatId: number,
+    fieldKey: string,
+    value: string | number,
+  ): void {
+    this.sessionService.updateSessionData(chatId, {
+      [fieldKey]: value,
     });
+    this.sessionService.incrementStep(chatId);
+  }
 
-    // Move to next step
-    this.sessionService.incrementStep(ctx.chat!.id);
-
+  private async displayNextFieldOrComplete(
+    ctx: Context,
+    session: WizardSession,
+    wizard: IWizard,
+  ): Promise<void> {
     const nextStep = this.sessionService.getCurrentStep(ctx.chat!.id);
     const allFields = wizard.getFields();
+
     if (nextStep < allFields.length) {
       const nextField = allFields[nextStep];
       if (nextField) {
-        if (nextField.type === 'keyboard' && nextField.options) {
-          // Show inline keyboard
-          await ctx.reply(nextField.prompt, {
-            reply_markup: {
-              inline_keyboard: [nextField.options],
-            },
-          });
-        } else {
-          await ctx.reply(nextField.prompt);
-        }
+        await this.displayWizardField(ctx, nextField);
       }
     } else {
-      // All fields collected - send webhook
       await this.completeWizard(ctx, session, wizard);
     }
   }
 
-  private async completeWizard(ctx: Context, session: any, wizard: any): Promise<void> {
+  private async displayWizardField(
+    ctx: Context,
+    field: IWizardField,
+  ): Promise<void> {
+    if (field.type === 'keyboard' && field.options) {
+      await ctx.reply(field.prompt, {
+        reply_markup: {
+          inline_keyboard: [field.options],
+        },
+      });
+    } else {
+      await ctx.reply(field.prompt);
+    }
+  }
+
+  private async completeWizard(
+    ctx: Context,
+    session: WizardSession,
+    wizard: IWizard,
+  ): Promise<void> {
     const chatId = ctx.chat!.id;
     const metadata = this.sessionService.getMetadata(chatId);
 

@@ -2,17 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import { ConfigurationService } from '../config/configuration.service';
 import { WebhookPayload } from '../types/service.types';
+import { WEBHOOK_CONFIG } from './webhook.config';
 
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
   private readonly httpClient: AxiosInstance;
-  private readonly maxRetries = 3;
-  private readonly retryDelay = 1000; // 1 second
+  private readonly maxRetries = WEBHOOK_CONFIG.MAX_RETRIES;
+  private readonly retryDelay = WEBHOOK_CONFIG.RETRY_DELAY_MS;
 
   constructor(private readonly configService: ConfigurationService) {
     this.httpClient = axios.create({
-      timeout: 10000,
+      timeout: WEBHOOK_CONFIG.TIMEOUT_MS,
     });
   }
 

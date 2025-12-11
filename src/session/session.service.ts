@@ -1,8 +1,8 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { WizardSession, SessionMetadata } from '../types/session.types';
 
 @Injectable()
-export class SessionService implements OnModuleInit {
+export class SessionService implements OnModuleInit, OnModuleDestroy {
   private readonly sessions = new Map<number, WizardSession>();
   private readonly sessionMetadata = new Map<number, SessionMetadata>();
   private readonly TTL = 30 * 60 * 1000; // 30 minutes
@@ -18,6 +18,7 @@ export class SessionService implements OnModuleInit {
   onModuleDestroy(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
   }
 

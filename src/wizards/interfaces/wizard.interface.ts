@@ -1,4 +1,5 @@
 import { IWizardField } from './wizard-field.interface';
+import { ServiceData } from '../../types/service.types';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -11,6 +12,6 @@ export interface IWizard {
   getServiceType(): string;
   getWebhookRoute(): string;
   validateField(fieldKey: string, value: string): ValidationResult;
-  formatSummary(data: Record<string, any>): string;
+  formatSummary(data: Partial<ServiceData>): string;
 }
 

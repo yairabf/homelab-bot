@@ -4,6 +4,7 @@ import { IWizardField } from '../interfaces/wizard-field.interface';
 import { IpValidator } from '../../validation/validators/ip.validator';
 import { PortValidator } from '../../validation/validators/port.validator';
 import { TextValidator } from '../../validation/validators/text.validator';
+import { ServiceData, DnsServiceData } from '../../types/service.types';
 
 @Injectable()
 export class AddServiceDnsWizard extends BaseWizardService {
@@ -42,6 +43,12 @@ export class AddServiceDnsWizard extends BaseWizardService {
         validate: 'text',
       },
       {
+        key: 'ip',
+        prompt: 'Please provide the IP address:',
+        type: 'text',
+        validate: 'ip',
+      },
+      {
         key: 'protocol',
         prompt: 'Choose the protocol for the service URL:',
         type: 'keyboard',
@@ -68,16 +75,18 @@ export class AddServiceDnsWizard extends BaseWizardService {
     ];
   }
 
-  formatSummary(data: Record<string, any>): string {
+  formatSummary(data: Partial<ServiceData>): string {
+    const dnsData = data as Partial<DnsServiceData>;
     return (
       `✅ Service added successfully!\n\n` +
       `📋 Summary:\n` +
       `Service Type: DNS\n` +
-      `Name: ${data.name}\n` +
-      `Host: ${data.host}\n` +
-      `Protocol: ${data.protocol}\n` +
-      `Policy: ${data.policy}\n` +
-      `Port: ${data.port}`
+      `Name: ${dnsData.name ?? 'N/A'}\n` +
+      `Host: ${dnsData.host ?? 'N/A'}\n` +
+      `IP: ${dnsData.ip ?? 'N/A'}\n` +
+      `Protocol: ${dnsData.protocol ?? 'N/A'}\n` +
+      `Policy: ${dnsData.policy ?? 'N/A'}\n` +
+      `Port: ${dnsData.port ?? 'N/A'}`
     );
   }
 }

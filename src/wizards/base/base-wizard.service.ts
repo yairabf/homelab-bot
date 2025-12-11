@@ -4,6 +4,7 @@ import { IWizardField } from '../interfaces/wizard-field.interface';
 import { IpValidator } from '../../validation/validators/ip.validator';
 import { PortValidator } from '../../validation/validators/port.validator';
 import { TextValidator } from '../../validation/validators/text.validator';
+import { ServiceData } from '../../types/service.types';
 
 @Injectable()
 export abstract class BaseWizardService implements IWizard {
@@ -16,7 +17,7 @@ export abstract class BaseWizardService implements IWizard {
   abstract getName(): string;
   abstract getFields(): IWizardField[];
   abstract getServiceType(): string;
-  abstract formatSummary(data: Record<string, any>): string;
+  abstract formatSummary(data: Partial<ServiceData>): string;
 
   getWebhookRoute(): string {
     return 'unknown';
