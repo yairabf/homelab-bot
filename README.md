@@ -298,6 +298,133 @@ The `HostProcessor` utility automatically adds `.yairlab` suffix to DNS service 
 - **Automatic Cleanup**: Background job runs every 5 minutes
 - **Metadata Storage**: Stores user information (chat ID, user ID, username)
 
+## Docker Deployment
+
+### Building the Docker Image
+
+Build the image locally:
+```bash
+docker build -t homelab-bot:latest .
+```
+
+### Publishing to GitHub Container Registry (GHCR)
+
+The project includes a GitHub Actions workflow that automatically builds and pushes Docker images to GHCR on:
+- Pushes to `main`/`master` branch (creates `latest` tag)
+- Git tags matching `v*` pattern (e.g., `v1.0.0`)
+- GitHub release creation
+
+**Image Location**: `ghcr.io/[your-username]/homelab-bot:[tag]`
+
+**Manual Push** (if needed):
+```bash
+# Login to GHCR
+echo $GITHUB_TOKEN | docker login ghcr.io -u [your-username] --password-stdin
+
+# Build and tag
+docker build -t ghcr.io/[your-username]/homelab-bot:latest .
+
+# Push
+docker push ghcr.io/[your-username]/homelab-bot:latest
+```
+
+### Running with Docker Compose
+
+1. **Set up environment variables**:
+   ```bash
+   # Create .env file if it doesn't exist
+   touch .env
+   ```
+
+2. **Configure docker-compose.yml**:
+   Update the `GITHUB_USERNAME` variable in `docker-compose.yml`:
+   ```yaml
+   image: ghcr.io/your-username/homelab-bot:latest
+   ```
+
+3. **Start services**:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **View logs**:
+   ```bash
+   docker-compose logs -f homelab-bot
+   ```
+
+5. **Stop services**:
+   ```bash
+   docker-compose down
+   ```
+
+### Watchtower Configuration
+
+Watchtower is included in `docker-compose.yml` and automatically:
+- Polls GHCR every 5 minutes for new images
+- Updates the `homelab-bot` container when a new image is available
+- Cleans up old images to save disk space
+- Only updates running containers
+
+**Watchtower Settings**:
+- **Poll Interval**: 300 seconds (5 minutes)
+- **Cleanup**: Enabled (removes old images)
+- **Include Stopped**: Disabled (only updates running containers)
+
+To disable auto-updates for a specific container, remove the Watchtower label:
+```yaml
+labels:
+  - "com.centurylinklabs.watchtower.enable=true"  # Remove this line
+```
+
+### Environment Variables in Docker
+
+All environment variables from `.env` are automatically loaded by docker-compose via `env_file`. Ensure your `.env` file contains:
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+INCOMING_WEBHOOK_URL=http://localhost:3000
+DEFAULT_CHAT_ID=
+PORT=4000
+```
+
+### Release Workflow
+
+1. **Create a Git tag**:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **GitHub Actions automatically**:
+   - Builds the Docker image
+   - Pushes to GHCR with tags: `v1.0.0`, `v1.0`, and `latest`
+
+3. **Watchtower detects** the new image within 5 minutes and updates the container
+
+4. **Old images are cleaned up** automatically by Watchtower
+
+### Testing Docker Build
+
+1. **Build locally**:
+   ```bash
+   docker build -t homelab-bot:test .
+   ```
+
+2. **Test run**:
+   ```bash
+   docker run --env-file .env -p 4000:4000 homelab-bot:test
+   ```
+
+3. **Verify health**:
+   ```bash
+   curl http://localhost:4000/health
+   ```
+
+4. **Test with compose**:
+   ```bash
+   docker-compose up -d
+   docker-compose ps
+   ```
+
 ## License
 
 UNLICENSED
